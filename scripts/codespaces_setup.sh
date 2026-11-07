@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# postStartCommand can still be running while the user manually starts the
+# demo. Serialize those calls so Compose never races to create the same names.
+exec 9>/tmp/norecov-codespaces-setup.lock
+if ! flock -n 9; then
+  echo "El inicio de NORECOV ya está en curso; espera a que termine."
+  exit 0
+fi
+
 cd "$(dirname "$0")/.."
 
 if [[ ! -f .env ]]; then
