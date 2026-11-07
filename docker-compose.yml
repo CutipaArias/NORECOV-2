@@ -1,0 +1,76 @@
+name: norecov
+x-backend: &backend
+  build: ./backend
+  env_file: .env
+  networks: [norecov-internal]
+  volumes:
+    - norecov-artifacts:/data/artifacts
+    # Solo para laboratorio local: acceso privilegiado al daemon Docker.
+    - /var/run/docker.sock:/var/run/docker.sock
+  restart: unless-stopped
+services:
+  mongo-control:
+    image: mongo:6.0
+    env_file: .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${CONTROL_MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${CONTROL_MONGO_PASSWORD}
+    volumes: [mongo-control-data:/data/db]
+    networks: [norecov-internal]
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.adminCommand({ping:1}).ok' | grep 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+  api:
+    <<: *backend
+    volumes:
+      - norecov-artifacts:/data/artifacts
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      mongo-control: {condition: service_healthy}
+  scheduler:
+    <<: *backend
+    command: ["python", "-m", "app.scheduler"]
+    volumes:
+      - norecov-artifacts:/data/artifacts
+    depends_on:
+      mongo-control: {condition: service_healthy}
+  worker:
+    <<: *backend
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      mongo-control: {condition: service_healthy}
+  web:
+    build: ./web
+    ports: ["127.0.0.1:8080:80"]
+    depends_on: [api]
+    networks: [norecov-internal]
+    restart: unless-stopped
+  mongo-source:
+    image: mongo:6.0
+    env_file: .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DEMO_MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${DEMO_MONGO_PASSWORD}
+    volumes: [mongo-demo-data:/data/db]
+    networks: [norecov-internal]
+    profiles: [demo]
+    restart: unless-stopped
+  redis-source:
+    image: redis:7.0-alpine
+    env_file: .env
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$DEMO_REDIS_PASSWORD\" --save 60 1"]
+    volumes: [redis-demo-data:/data]
+    networks: [norecov-internal]
+    profiles: [demo]
+    restart: unless-stopped
+networks:
+  norecov-internal:
+    driver: bridge
+volumes:
+  mongo-control-data:
+  norecov-artifacts:
+  mongo-demo-data:
+  redis-demo-data:

@@ -1,0 +1,16 @@
+{
+  "name": "NORECOV Expo",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "postCreateCommand": "bash scripts/codespaces_setup.sh",
+  "postStartCommand": "docker compose --profile demo up -d --build --scale worker=2",
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "NORECOV Expo",
+      "onAutoForward": "openBrowser"
+    }
+  }
+}

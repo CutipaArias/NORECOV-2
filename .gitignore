@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+dist/
+.vscode/
+.DS_Store
+artifacts/
+*.enc
+
+*.bak
+*.bak-*
+seed_demo_anterior.ps1
