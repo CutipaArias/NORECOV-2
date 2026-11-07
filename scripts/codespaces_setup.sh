@@ -7,6 +7,22 @@ if [[ ! -f .env ]]; then
   python3 scripts/generate_env.py
 fi
 
+# Docker-in-Docker starts with the Codespace container. Wait for its daemon
+# before running Compose so a slow first boot does not fail immediately.
+docker_ready=false
+for _ in $(seq 1 60); do
+  if docker info >/dev/null 2>&1; then
+    docker_ready=true
+    break
+  fi
+  sleep 2
+done
+
+if [[ "$docker_ready" != true ]]; then
+  echo "Docker no respondió en 120 segundos; revisa el registro del contenedor." >&2
+  exit 1
+fi
+
 docker compose --profile demo up -d --build --scale worker=2
 
 ready=false
